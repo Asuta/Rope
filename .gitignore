@@ -1,5 +1,5 @@
 # 忽略整个 model 文件夹
-/model/
+/models/
 
 # Python 相关
 __pycache__/
