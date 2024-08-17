@@ -1,0 +1,45 @@
+# 忽略整个 model 文件夹
+/model/
+
+# Python 相关
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 虚拟环境
+venv/
+env/
+.env
+
+# IDE 相关
+.vscode/
+.idea/
+
+# 操作系统相关
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+
+# 编译文件
+*.so
+
+# 分发/打包
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 其他常见忽略项
+*.bak
+*.swp
+*.swo
