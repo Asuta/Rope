@@ -112,7 +112,6 @@ class GUI(tk.Tk):
                                                     
 
 #####
-
     def delete_selected_face(self, event):
         print("delete_selected_face 方法被调用")
         for i, face in enumerate(self.source_faces):
@@ -140,12 +139,25 @@ class GUI(tk.Tk):
                 self.source_faces.pop(i)
                 print(f"已从source_faces列表中移除face {i}")
 
-                # 重新加载剩余的面部图片
-                self.load_input_faces()
-                print("重新加载了input faces")
+                # 更新画布，而不是重新加载
+                self.update_faces_canvas()
+                print("更新了faces画布")
                 break
         else:
             print("没有找到选中的face")
+            
+    def update_faces_canvas(self):
+        self.source_faces_canvas.delete("all")  # 清除画布上的所有内容
+        
+        for i, face in enumerate(self.source_faces):
+            face["TKButton"] = tk.Button(self.source_faces_canvas, style.media_button_off_3, image=face["Image"], height=90, width=90)
+            face["TKButton"].bind("<ButtonRelease-1>", lambda event, arg=i: self.select_input_faces(event, arg))
+            face["TKButton"].bind("<MouseWheel>", self.source_faces_mouse_wheel)
+            
+            self.source_faces_canvas.create_window((i % 2) * 100, (i // 2) * 100, window=face["TKButton"], anchor='nw')
+            print(f"重新绘制了face {i}")
+        
+        self.static_widget['input_faces_scrollbar'].resize_scrollbar(None)
 
     def create_gui(self):
 
