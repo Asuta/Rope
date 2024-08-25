@@ -10,6 +10,7 @@ import copy
 import bisect
 import torch
 import torchvision
+from send2trash import send2trash
 
 torchvision.disable_beta_transforms_warning()
 import mimetypes
@@ -67,6 +68,7 @@ class GUI(tk.Tk):
         self.static_widget = {}
         self.layer = {}
 
+
         self.temp_emb = []
 
         self.arcface_dst = np.array([[38.2946, 51.6963], [73.5318, 51.5014], [56.0252, 71.7366], [41.5493, 92.3655], [70.7299, 92.2041]], dtype=np.float32)
@@ -104,10 +106,47 @@ class GUI(tk.Tk):
                             "Embedding":                []
                             }   
         self.source_faces = [] 
+        self.bind('<Delete>', self.delete_selected_face)
+        print("Delete键绑定已设置")
    
                                                     
 
 #####
+
+    def delete_selected_face(self, event):
+        print("delete_selected_face 方法被调用")
+        for i, face in enumerate(self.source_faces):
+            if face["ButtonState"]:
+                print(f"找到选中的face: {i}")
+                
+                # 规范化文件路径
+                file_path = os.path.normpath(face["file"])
+                print(f"规范化后的文件路径: {file_path}")
+                
+                # 检查文件是否存在
+                if not os.path.exists(file_path):
+                    print(f"文件不存在: {file_path}")
+                    return
+                
+                # 将文件发送到回收站
+                try:
+                    send2trash(file_path)
+                    print(f"已将文件发送到回收站: {file_path}")
+                except Exception as e:
+                    print(f"发送文件到回收站时出错: {str(e)}")
+                    return  # 如果操作失败，我们不应继续
+
+                # 从列表中移除face
+                self.source_faces.pop(i)
+                print(f"已从source_faces列表中移除face {i}")
+
+                # 重新加载剩余的面部图片
+                self.load_input_faces()
+                print("重新加载了input faces")
+                break
+        else:
+            print("没有找到选中的face")
+
     def create_gui(self):
 
         # 1 x 3 Top level grid
@@ -915,6 +954,7 @@ class GUI(tk.Tk):
         self.load_input_faces()
 
     def load_input_faces(self):
+        print("load_input_faces 方法被调用")
         self.source_faces = []
         self.merged_faces_canvas.delete("all")
         self.source_faces_canvas.delete("all")
@@ -945,8 +985,9 @@ class GUI(tk.Tk):
             self.merged_faces_canvas.configure(scrollregion = self.merged_faces_canvas.bbox("all"))
             self.merged_faces_canvas.xview_moveto(0)
 
-        except:
-            pass
+            print(f"加载了 {len(temp0)} 个合并的embeddings")
+        except Exception as e:
+            print(f"加载合并embeddings时出错: {str(e)}")
 
         self.shift_i_len = len(self.source_faces)
 
@@ -954,17 +995,13 @@ class GUI(tk.Tk):
         directory = self.json_dict["source faces"]
         filenames = [os.path.join(dirpath,f) for (dirpath, dirnames, filenames) in os.walk(directory) for f in filenames]
 
-        # torch.cuda.memory._record_memory_history(True, trace_alloc_max_entries=100000, trace_alloc_record_context=True)
         i=0
-        for file in filenames: # Does not include full path
-            # Find all faces and ad to faces[]
-            # Guess File type based on extension
+        for file in filenames:
             try:
                 file_type = mimetypes.guess_type(file)[0][:5]
             except:
-                print('Unrecognized file type:', file)
+                print('无法识别的文件类型:', file)
             else:
-                # Its an image
                 if file_type == 'image':
                     img = cv2.imread(file)
 
@@ -989,7 +1026,7 @@ class GUI(tk.Tk):
                         try:
                             kpss = self.models.run_detect(img, max_num=1)[0] # Just one face here
                         except IndexError:
-                            print('Image cropped too close:', file)
+                            print('图像裁剪过近:', file)
                         else:
                             face_emb, cropped_image = self.models.run_recognize(img, kpss)
                             crop = cv2.cvtColor(cropped_image.cpu().numpy(), cv2.COLOR_BGR2RGB)
@@ -1011,12 +1048,13 @@ class GUI(tk.Tk):
 
                             self.static_widget['input_faces_scrollbar'].resize_scrollbar(None)
                             i = i + 1
+                            print(f"加载了图像: {file}")
 
                     else:
-                        print('Bad file', file)
-
+                        print('无效的文件', file)
 
         torch.cuda.empty_cache()
+        print(f"总共加载了 {i} 个图像文件")
 
     def find_faces(self):
         try:
@@ -1106,7 +1144,7 @@ class GUI(tk.Tk):
             self.source_faces[self.target_faces[button]["SourceFaceAssignments"][i]]["TKButton"].config(style.media_button_on_3)
 
     def select_input_faces(self, event, button):
-
+        print(f"select_input_faces 被调用: event={event}, button={button}")
         try:
             if event.state & 0x4 != 0:
                 modifier = 'ctrl'
@@ -1116,79 +1154,82 @@ class GUI(tk.Tk):
                 modifier = 'none'
         except:
             modifier = event
-
-
-        # If autoswap isnt on
-        # Clear all the highlights. Clear all states, excpet if a modifier is being used
-        # Start by turning off all the highlights on the input faces buttons
+        print(f"修饰符: {modifier}")
+        
+        # 如果autoswap没有开启
         if modifier != 'auto':
             for face in self.source_faces:
                 face["TKButton"].config(style.media_button_off_3)
-
-                # and also clear the states if not selecting multiples
+                
+                # 如果不是选择多个,则清除所有状态
                 if modifier == 'none':
                     face["ButtonState"] = False
+            print("重置了所有face的按钮状态")
 
-            # Toggle the state of the selected Input Face
+            # 切换选中的Input Face的状态
             if modifier != 'merge':
                 self.source_faces[button]["ButtonState"] = not self.source_faces[button]["ButtonState"]
+                print(f"切换了face {button}的ButtonState为: {self.source_faces[button]['ButtonState']}")
 
-            # if shift find any other input faces and activate the state of all faces in between
+            # 如果是shift,找到其他任何input faces并激活它们之间的所有faces的状态
             if modifier == 'shift':
                 for i in range(button-1, self.shift_i_len-1, -1):
                     if self.source_faces[i]["ButtonState"]:
                         for j in range(i, button, 1):
                             self.source_faces[j]["ButtonState"] = True
+                        print(f"激活了从face {i}到{button}的所有faces")
                         break
                 for i in range(button+1, len(self.source_faces), 1):
                     if self.source_faces[i]["ButtonState"]:
                         for j in range(button, i, 1):
                             self.source_faces[j]["ButtonState"] = True
+                        print(f"激活了从face {button}到{i}的所有faces")
                         break
 
-            # Highlight all of input faces buttons that have a true state
-            for face in self.source_faces:
+            # 高亮所有状态为true的input faces按钮
+            for i, face in enumerate(self.source_faces):
                 if face["ButtonState"]:
                     face["TKButton"].config(style.media_button_on_3)
+                    print(f"高亮了face {i}的按钮")
 
-                    if self.widget['PreviewModeTextSel'].get() == 'FaceLab':
-                        self.add_action("load_target_image", face["file"])
-                        self.image_loaded = True
+                if self.widget['PreviewModeTextSel'].get() == 'FaceLab':
+                    self.add_action("load_target_image", face["file"])
+                    self.image_loaded = True
+                    print("在FaceLab模式下加载了目标图像")
 
-        # Assign all active input faces to the active target face
+        # 将所有激活的input faces分配给激活的target face
         for tface in self.target_faces:
             if tface["ButtonState"]:
-
-                # Clear all of the assignments
+                # 清除所有分配
                 tface["SourceFaceAssignments"] = []
+                print("清除了target face的所有分配")
 
-                # Iterate through all Input faces
+                # 遍历所有Input faces
                 temp_holder = []
                 for j in range(len(self.source_faces)):
-
-                    # If the source face is active
+                    # 如果source face是激活的
                     if self.source_faces[j]["ButtonState"]:
                         tface["SourceFaceAssignments"].append(j)
                         temp_holder.append(self.source_faces[j]['Embedding'])
+                        print(f"将face {j}分配给了target face")
 
-                # do averaging
+                # 进行平均
                 if temp_holder:
                     if self.widget['MergeTextSel'].get() == 'Median':
                         tface['AssignedEmbedding'] = np.median(temp_holder, 0)
+                        print("使用中位数合并了embeddings")
                     elif self.widget['MergeTextSel'].get() == 'Mean':
                         tface['AssignedEmbedding'] = np.mean(temp_holder, 0)
+                        print("使用平均值合并了embeddings")
 
                     self.temp_emb = tface['AssignedEmbedding']
+                    print("设置了temp_emb")
 
-                    # for k in range(512):
-                    #     self.widget['emb_vec_' + str(k)].set(tface['AssignedEmbedding'][k], False)
                 break
 
         self.add_action("target_faces", self.target_faces)
         self.add_action('get_requested_video_frame', self.video_slider.get())
-
-        # latent = torch.from_numpy(self.models.calc_swapper_latent(self.source_faces[button]['Embedding'])).float().to('cuda')
-        # face['ptrdata'] = self.models.run_swap_stg1(latent)
+        print("添加了action: target_faces和get_requested_video_frame")
 
 
 
