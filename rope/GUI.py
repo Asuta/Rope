@@ -108,10 +108,28 @@ class GUI(tk.Tk):
         self.source_faces = [] 
         self.bind('<Delete>', self.delete_selected_face)
         print("Delete键绑定已设置")
+        self.bind('<Control-a>', self.select_all_faces)  # 添加这一行
+        print("Delete键和Ctrl+A键绑定已设置")
    
                                                     
 
 #####
+
+    def select_all_faces(self, event):
+        print("select_all_faces 方法被调用")
+        for i, face in enumerate(self.source_faces):
+            face["ButtonState"] = True
+            face["TKButton"].config(style.media_button_on_3)
+            
+            # 模拟选择每个face
+            self.select_input_faces('auto', i)
+        
+        self.update_faces_canvas()
+        print("所有faces已被选中并处理")
+        
+        # 更新target faces (如果需要的话)
+        # self.update_target_faces()
+        
     def delete_selected_face(self, event):
         print("delete_selected_face 方法被调用")
         for i, face in enumerate(self.source_faces):
@@ -150,12 +168,13 @@ class GUI(tk.Tk):
         self.source_faces_canvas.delete("all")  # 清除画布上的所有内容
         
         for i, face in enumerate(self.source_faces):
-            face["TKButton"] = tk.Button(self.source_faces_canvas, style.media_button_off_3, image=face["Image"], height=90, width=90)
+            button_style = style.media_button_on_3 if face["ButtonState"] else style.media_button_off_3
+            face["TKButton"] = tk.Button(self.source_faces_canvas, button_style, image=face["Image"], height=90, width=90)
             face["TKButton"].bind("<ButtonRelease-1>", lambda event, arg=i: self.select_input_faces(event, arg))
             face["TKButton"].bind("<MouseWheel>", self.source_faces_mouse_wheel)
             
             self.source_faces_canvas.create_window((i % 2) * 100, (i // 2) * 100, window=face["TKButton"], anchor='nw')
-            print(f"重新绘制了face {i}")
+            # print(f"重新绘制了face {i}, 选中状态: {face['ButtonState']}")
         
         self.static_widget['input_faces_scrollbar'].resize_scrollbar(None)
 
@@ -1060,7 +1079,7 @@ class GUI(tk.Tk):
 
                             self.static_widget['input_faces_scrollbar'].resize_scrollbar(None)
                             i = i + 1
-                            print(f"加载了图像: {file}")
+                            # print(f"加载了图像: {file}")
 
                     else:
                         print('无效的文件', file)
@@ -1223,7 +1242,7 @@ class GUI(tk.Tk):
                     if self.source_faces[j]["ButtonState"]:
                         tface["SourceFaceAssignments"].append(j)
                         temp_holder.append(self.source_faces[j]['Embedding'])
-                        print(f"将face {j}分配给了target face")
+                        # print(f"将face {j}分配给了target face")
 
                 # 进行平均
                 if temp_holder:
