@@ -117,13 +117,7 @@ class GUI(tk.Tk):
 
     def select_all_faces(self, event):
         print("select_all_faces 方法被调用")
-        for i, face in enumerate(self.source_faces):
-            face["ButtonState"] = True
-            face["TKButton"].config(style.media_button_on_3)
-            
-            # 模拟选择每个face
-            self.select_input_faces('auto', i)
-        
+        self.select_input_faces('ctrl', 0)
         self.update_faces_canvas()
         print("所有faces已被选中并处理")
         
