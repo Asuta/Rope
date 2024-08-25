@@ -117,9 +117,12 @@ class GUI(tk.Tk):
 
     def select_all_faces(self, event):
         print("select_all_faces 方法被调用")
-        self.select_input_faces('ctrl', 0)
+        for face in self.source_faces:
+            face["ButtonState"] = True
+            face["TKButton"].config(style.media_button_on_3)
         self.update_faces_canvas()
         print("所有faces已被选中并处理")
+        self._update_target_face_assignments()
         
         # 更新target faces (如果需要的话)
         # self.update_target_faces()
@@ -1170,29 +1173,36 @@ class GUI(tk.Tk):
 
     def select_input_faces(self, event, button):
         print(f"select_input_faces 被调用: event={event}, button={button}")
-        try:
-            if event.state & 0x4 != 0:
+        
+        if isinstance(event, str):
+            modifier = event
+        else:
+            if event.state & 0x4 != 0:  # Ctrl键
                 modifier = 'ctrl'
-            elif event.state & 0x1 != 0:
+            elif event.state & 0x1 != 0:  # Shift键
                 modifier = 'shift'
             else:
                 modifier = 'none'
-        except:
-            modifier = event
         print(f"修饰符: {modifier}")
         
         if modifier == 'ctrl':
-            # 模拟shift全选行为
-            self._select_all_faces()
+            self._ctrl_select_face(button)
         elif modifier == 'shift':
             self._shift_select_faces(button)
         elif modifier == 'none':
             self._single_select_face(button)
         elif modifier == 'auto':
-            # 保持现有的auto行为不变
             self._auto_select_faces(button)
         
         self._update_target_face_assignments()
+
+    def _ctrl_select_face(self, button):
+        self.source_faces[button]["ButtonState"] = not self.source_faces[button]["ButtonState"]
+        self.source_faces[button]["TKButton"].config(
+            style.media_button_on_3 if self.source_faces[button]["ButtonState"] else style.media_button_off_3
+        )
+        print(f"切换了face {button}的ButtonState为: {self.source_faces[button]['ButtonState']}")
+
 
     def _select_all_faces(self):
         for face in self.source_faces:
