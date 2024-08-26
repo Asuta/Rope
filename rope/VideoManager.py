@@ -540,7 +540,7 @@ class VideoManager():
             img = tscale(img)    
 
         # 自动旋转功能
-        if parameters.get('AutoRotateSwitch', False):  # 假设您添加了一个新的AutoRotateSwitch参数
+        if parameters.get('AutoRotateSwitch', True):  # 假设您添加了一个新的AutoRotateSwitch参数
             for rotation in range(4):  # 0°, 90°, 180°, 270°
                 if rotation > 0:
                     img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
