@@ -14,6 +14,7 @@ import torchvision
 from torchvision.transforms.functional import normalize #update to v2
 import torch
 from torchvision import transforms
+import torchvision.transforms.functional as TF
 torchvision.disable_beta_transforms_warning()
 from torchvision.transforms import v2
 torch.set_grad_enabled(False)
@@ -502,7 +503,52 @@ class VideoManager():
                     break
 
 
+    def calculate_face_score(self, face_kps):
+        # 计算关键点之间的距离
+        distances = []
+        for i in range(len(face_kps)):
+            for j in range(i+1, len(face_kps)):
+                dist = np.linalg.norm(face_kps[i] - face_kps[j])
+                distances.append(dist)
+        
+        # 计算距离的平均值和标准差
+        mean_dist = np.mean(distances)
+        std_dist = np.std(distances)
+        
+        # 返回一个分数,较大的平均距离和较小的标准差通常表示更好的检测
+        return mean_dist / (std_dist + 1e-6)  # 添加小量以避免除零错误
 
+    def auto_rotate_and_detect(self, img, parameters):
+        best_detection = None
+        best_score = -1
+        best_rotation = 0
+
+        for rotation in range(4):
+            rotated_img = TF.rotate(img, angle=90*rotation, interpolation=transforms.InterpolationMode.BILINEAR)
+            
+            kpss = self.func_w_test("detect", self.models.run_detect, rotated_img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+            
+            if len(kpss) > 0:
+                # 计算所有检测到的人脸的平均分数
+                face_scores = [self.calculate_face_score(face_kps) for face_kps in kpss]
+                avg_score = np.mean(face_scores)
+                
+                # 考虑检测到的人脸数量
+                total_score = avg_score * len(kpss)
+                
+                if total_score > best_score:
+                    best_score = total_score
+                    best_detection = kpss
+                    best_rotation = rotation
+            
+            print(f"旋转: {rotation * 90}°, 分数: {total_score if len(kpss) > 0 else 0}")
+
+        if best_detection is not None:
+            kpss = best_detection
+            if best_rotation > 0:
+                img = TF.rotate(img, angle=90*best_rotation, interpolation=transforms.InterpolationMode.BILINEAR)
+        
+        return img, kpss, best_rotation
 
     # @profile
     def swap_video(self, target_image, frame_number, use_markers):
@@ -528,33 +574,30 @@ class VideoManager():
         
         if img_x<512 and img_y<512:
             if img_x <= img_y:
-                tscale = v2.Resize((int(512*img_y/img_x), 512), antialias=True)
+                tscale = transforms.Resize((int(512*img_y/img_x), 512), antialias=True)
             else:
-                tscale = v2.Resize((512, int(512*img_x/img_y)), antialias=True)
+                tscale = transforms.Resize((512, int(512*img_x/img_y)), antialias=True)
             img = tscale(img)
         elif img_x<512:
-            tscale = v2.Resize((int(512*img_y/img_x), 512), antialias=True)
+            tscale = transforms.Resize((int(512*img_y/img_x), 512), antialias=True)
             img = tscale(img)
         elif img_y<512:
-            tscale = v2.Resize((512, int(512*img_x/img_y)), antialias=True)
+            tscale = transforms.Resize((512, int(512*img_x/img_y)), antialias=True)
             img = tscale(img)    
-
+            
+        # 记录原始尺寸
+        original_size = (img.shape[1], img.shape[2])
+        
         # 自动旋转功能
-        if parameters.get('AutoRotateSwitch', False):  # 假设您添加了一个新的AutoRotateSwitch参数
-            for rotation in range(4):  # 0°, 90°, 180°, 270°
-                if rotation > 0:
-                    img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-                
-                # 检测人脸
-                kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
-                
-                if len(kpss) > 0:  # 如果检测到人脸,跳出循环
-                    break
+        if parameters.get('AutoRotateSwitch', False):
+            img, kpss, rotation = self.auto_rotate_and_detect(img, parameters)
         else:
+            rotation = 0
             # 原有的旋转功能
             if parameters['OrientSwitch']:
-                img = v2.functional.rotate(img, angle=parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-
+                angle = parameters['OrientSlider']
+                img = TF.rotate(img, angle=angle, interpolation=transforms.InterpolationMode.BILINEAR, expand=True)
+                rotation = angle // 90
             # 检测人脸
             kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
 
@@ -573,33 +616,42 @@ class VideoManager():
                     # 如果帧中的人脸[i]匹配已找到的人脸[j],并且找到的人脸是活跃的(不是[])
                     if sim>=float(parameters["ThresholdSlider"]) and found_face["SourceFaceAssignments"]:
                         s_e = found_face["AssignedEmbedding"]
-                        img = self.func_w_test("swap_video", self.swap_core, img, fface[0], s_e, parameters, control)
+                        img = self.func_w_test("swap_core", self.swap_core, img, fface[0], s_e, parameters, control)
             
             img = img.permute(1,2,0)
-            if not control['MaskViewButton'] and (parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False)):
-                img = img.permute(2,0,1)
-                if parameters['OrientSwitch']:
-                    img = transforms.functional.rotate(img, angle=-parameters['OrientSlider'], expand=True)
-                elif parameters.get('AutoRotateSwitch', False):
-                    img = transforms.functional.rotate(img, angle=-90*rotation, expand=True)
-                img = img.permute(1,2,0)
+            if not control['MaskViewButton']:
+                # 在这里进行最终的旋转校正
+                if rotation != 0:
+                    img = img.permute(2,0,1)
+                    img = TF.rotate(img, angle=-90*rotation, interpolation=transforms.InterpolationMode.BILINEAR, expand=True)
+                    img = img.permute(1,2,0)
 
         else:
             img = img.permute(1,2,0)
             if parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False):
                 img = img.permute(2,0,1)
                 if parameters['OrientSwitch']:
-                    img = v2.functional.rotate(img, angle=-parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                    img = TF.rotate(img, angle=-parameters['OrientSlider'], interpolation=transforms.InterpolationMode.BILINEAR, expand=True)
                 elif parameters.get('AutoRotateSwitch', False):
-                    img = v2.functional.rotate(img, angle=-90*rotation, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                    img = TF.rotate(img, angle=-90*rotation, interpolation=transforms.InterpolationMode.BILINEAR, expand=True)
                 img = img.permute(1,2,0)
+        
+        # 如果旋转了90度或270度，需要调整尺寸
+        if abs(rotation) % 2 == 1:
+            new_size = (original_size[1], original_size[0])  # 交换宽高
+        else:
+            new_size = original_size
+
+        # 调整图像大小以匹配原始尺寸或旋转后的新尺寸
+        img = TF.resize(img.permute(2,0,1), size=new_size, interpolation=transforms.InterpolationMode.BILINEAR)
+        img = img.permute(1,2,0)
         
         if self.perf_test:
             print('------------------------')  
         
         # 缩小小视频
         if img_x <512 or img_y < 512:
-            tscale = v2.Resize((img_y, img_x), antialias=True)
+            tscale = transforms.Resize((img_y, img_x), antialias=True)
             img = img.permute(2,0,1)
             img = tscale(img)
             img = img.permute(1,2,0)
