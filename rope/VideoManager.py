@@ -506,106 +506,106 @@ class VideoManager():
 
     # @profile
     def swap_video(self, target_image, frame_number, use_markers):
-        # Grab a local copy of the parameters to prevent threading issues
+        # 获取参数的本地副本以防止线程问题
         parameters = self.parameters.copy()
         control = self.control.copy()
         
-        # Find out if the frame is in a marker zone and copy the parameters if true
+        # 检查帧是否在标记区域内,如果是则复制参数
         if self.markers and use_markers:
-            temp=[]
+            temp = []
             for i in range(len(self.markers)):
                 temp.append(self.markers[i]['frame'])
             idx = bisect.bisect(temp, frame_number)
-            
             parameters = self.markers[idx-1]['parameters'].copy()
         
-        # Load frame into VRAM
+        # 将帧加载到VRAM
         img = torch.from_numpy(target_image.astype('uint8')).to('cuda') #HxWxc
         img = img.permute(2,0,1)#cxHxW        
         
-        #Scale up frame if it is smaller than 512
+        # 如果帧小于512,则放大
         img_x = img.size()[2]
         img_y = img.size()[1]
         
         if img_x<512 and img_y<512:
-            # if x is smaller, set x to 512
             if img_x <= img_y:
                 tscale = v2.Resize((int(512*img_y/img_x), 512), antialias=True)
             else:
                 tscale = v2.Resize((512, int(512*img_x/img_y)), antialias=True)
-
             img = tscale(img)
-            
         elif img_x<512:
             tscale = v2.Resize((int(512*img_y/img_x), 512), antialias=True)
             img = tscale(img)
-        
         elif img_y<512:
             tscale = v2.Resize((512, int(512*img_x/img_y)), antialias=True)
             img = tscale(img)    
 
-        # Rotate the frame
-        if parameters['OrientSwitch']:
-            img = v2.functional.rotate(img, angle=parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+        # 自动旋转功能
+        if parameters.get('AutoRotateSwitch', False):  # 假设您添加了一个新的AutoRotateSwitch参数
+            for rotation in range(4):  # 0°, 90°, 180°, 270°
+                if rotation > 0:
+                    img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                
+                # 检测人脸
+                kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+                
+                if len(kpss) > 0:  # 如果检测到人脸,跳出循环
+                    break
+        else:
+            # 原有的旋转功能
+            if parameters['OrientSwitch']:
+                img = v2.functional.rotate(img, angle=parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
 
-        # Find all faces in frame and return a list of 5-pt kpss
-        kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
-        # Get embeddings for all faces found in the fram
+            # 检测人脸
+            kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+
+        # 获取所有检测到的人脸的嵌入
         ret = []
         for face_kps in kpss:
             face_emb, _ = self.func_w_test('recognize',  self.models.run_recognize, img, face_kps)
             ret.append([face_kps, face_emb])
         
-        if ret:
-            # Loop through target faces to see if they match our found face embeddings
+        if len(ret) > 0:
+            # 遍历目标人脸,查看它们是否与我们找到的人脸嵌入匹配
             for fface in ret:
                 for found_face in self.found_faces:
-                    # sim between face in video and already found face
+                    # 视频中的人脸和已找到的人脸之间的相似度
                     sim = self.findCosineDistance(fface[1], found_face["Embedding"])
-                    # if the face[i] in the frame matches afound face[j] AND the found face is active (not []) 
+                    # 如果帧中的人脸[i]匹配已找到的人脸[j],并且找到的人脸是活跃的(不是[])
                     if sim>=float(parameters["ThresholdSlider"]) and found_face["SourceFaceAssignments"]:
                         s_e = found_face["AssignedEmbedding"]
-                        # s_e = found_face['ptrdata']
                         img = self.func_w_test("swap_video", self.swap_core, img, fface[0], s_e, parameters, control)
-                        # img = img.permute(2,0,1)
-                    
+            
             img = img.permute(1,2,0)
-            if not control['MaskViewButton'] and parameters['OrientSwitch']:
+            if not control['MaskViewButton'] and (parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False)):
                 img = img.permute(2,0,1)
-                img = transforms.functional.rotate(img, angle=-parameters['OrientSlider'], expand=True)
+                if parameters['OrientSwitch']:
+                    img = transforms.functional.rotate(img, angle=-parameters['OrientSlider'], expand=True)
+                elif parameters.get('AutoRotateSwitch', False):
+                    img = transforms.functional.rotate(img, angle=-90*rotation, expand=True)
                 img = img.permute(1,2,0)
 
         else:
             img = img.permute(1,2,0)
-            if parameters['OrientSwitch']:
+            if parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False):
                 img = img.permute(2,0,1)
-                img = v2.functional.rotate(img, angle=-parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                if parameters['OrientSwitch']:
+                    img = v2.functional.rotate(img, angle=-parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                elif parameters.get('AutoRotateSwitch', False):
+                    img = v2.functional.rotate(img, angle=-90*rotation, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                 img = img.permute(1,2,0)
         
         if self.perf_test:
             print('------------------------')  
         
-        # Unscale small videos
+        # 缩小小视频
         if img_x <512 or img_y < 512:
             tscale = v2.Resize((img_y, img_x), antialias=True)
             img = img.permute(2,0,1)
             img = tscale(img)
             img = img.permute(1,2,0)
             
-
         img = img.cpu().numpy()  
 
-        # if ret:
-        #
-        #     for kpoint in ret[0][0]:
-        #         for i in range(-1, 1):
-        #             for j in range(-1, 1):
-        #
-        #                 img[int(kpoint[1])+i][int(kpoint[0])+j][0] = 255
-        #                 img[int(kpoint[1])+i][int(kpoint[0])+j][1] = 255
-        #                 img[int(kpoint[1])+i][int(kpoint[0])+j][2] = 255
-
-        
         return img.astype(np.uint8)
 
     def findCosineDistance(self, vector1, vector2):
