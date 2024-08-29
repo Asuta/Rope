@@ -1,3 +1,4 @@
+import math
 import os
 import cv2
 import tkinter as tk
@@ -539,25 +540,87 @@ class VideoManager():
             tscale = v2.Resize((512, int(512*img_x/img_y)), antialias=True)
             img = tscale(img)    
 
-        # 自动旋转功能
+        # # 自动旋转功能
+        # if parameters.get('AutoRotateSwitch', True):  # 假设您添加了一个新的AutoRotateSwitch参数
+        #     for rotation in range(4):  # 0°, 90°, 180°, 270°
+        #         if rotation > 0:
+        #             img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                
+        #         # 检测人脸
+        #         kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+                
+        #         if len(kpss) > 0:  # 如果检测到人脸,跳出循环
+        #             break
+        # else:
+        #     # 原有的旋转功能
+        #     if parameters['OrientSwitch']:
+        #         img = v2.functional.rotate(img, angle=parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+
+        #     # 检测人脸
+        #     kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+        
+        # 自动旋转功能2
         if parameters.get('AutoRotateSwitch', True):  # 假设您添加了一个新的AutoRotateSwitch参数
+            rotation2 = 0
+            rotation3 = 0
             for rotation in range(4):  # 0°, 90°, 180°, 270°
                 if rotation > 0:
                     img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                    rotation3 = rotation*90
                 
                 # 检测人脸
                 kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
                 
                 if len(kpss) > 0:  # 如果检测到人脸,跳出循环
+                    # 如果有人脸，判断这个人脸是不是目标人脸。
+                    for face_kps in kpss:# 这里face_kps指的是视频中的人脸。
+                        # 获取视频中的人脸的嵌入
+                        face_emb, _ = self.func_w_test('recognize',  self.models.run_recognize, img, face_kps)
+                        # 计算视频中的人脸的嵌入与目标人脸的嵌入的相似度
+                        sim = self.findCosineDistance(face_emb, self.found_faces[0]["Embedding"])
+                        if sim >= float(parameters["ThresholdSlider"]):
+                            print("找到了")
+                            print("当前旋转的角度：", rotation)
+                            #计算当前人脸的嵌入的人脸角度。通过眼睛和嘴巴的相对位置。
+                            print("face_kps:", face_kps)
+                            # 计算眼睛的中心点
+                            left_eye = face_kps[0]
+                            right_eye = face_kps[1]
+                            eye_center = (left_eye[0] + right_eye[0]) / 2
+                            
+                            # 计算眼睛的相对位置
+                            eye_distance = right_eye - left_eye
+                            # 计算嘴巴的中心点
+                            mouth_center = (face_kps[2] + face_kps[3]) / 2
+                            # 计算嘴巴的相对位置
+                            mouth_distance = mouth_center - eye_center
+                            # log 
+                            print("眼睛的相对位置：", eye_distance)
+                            print("嘴巴的相对位置：", mouth_distance)
+                            # 计算人脸的角度
+                            face_angle = math.atan2(mouth_distance[1], mouth_distance[0]) - math.atan2(eye_distance[1], eye_distance[0])
+                            face_angle = math.degrees(face_angle)
+                            print("rotation 的角度：", rotation)
+                            print("当前人脸的角度：", face_angle)
+                            rotation2 = face_angle + rotation*90 + 90
+                            print("rotation2:", rotation2)
+                            img = v2.functional.rotate(img, angle=-rotation2, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                            kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+                            if len(kpss) > 0:
+                                print("第二次检测到人脸")
+                            # 再转回来
+                            # img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                            break
                     break
         else:
             # 原有的旋转功能
             if parameters['OrientSwitch']:
                 img = v2.functional.rotate(img, angle=parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-
             # 检测人脸
             kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+        
 
+        
         # 获取所有检测到的人脸的嵌入
         ret = []
         for face_kps in kpss:
@@ -576,14 +639,20 @@ class VideoManager():
                         img = self.func_w_test("swap_video", self.swap_core, img, fface[0], s_e, parameters, control)
             
             img = img.permute(1,2,0)
+            # 如果mask 
             if not control['MaskViewButton'] and (parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False)):
+                print("第一次")
+                # img = img.permute(2,0,1)
+                # if parameters['OrientSwitch']:
+                #     img = transforms.functional.rotate(img, angle=-parameters['OrientSlider'], expand=True)
+                # elif parameters.get('AutoRotateSwitch', False):
+                #     img = transforms.functional.rotate(img, angle=-90*rotation, expand=True)
+                # img = img.permute(1,2,0)
+            if parameters.get('AutoRotateSwitch', True): 
+                print("第二次")
                 img = img.permute(2,0,1)
-                if parameters['OrientSwitch']:
-                    img = transforms.functional.rotate(img, angle=-parameters['OrientSlider'], expand=True)
-                elif parameters.get('AutoRotateSwitch', False):
-                    img = transforms.functional.rotate(img, angle=-90*rotation, expand=True)
+                img = transforms.functional.rotate(img, angle=- rotation3+rotation2, expand=True)
                 img = img.permute(1,2,0)
-
         else:
             img = img.permute(1,2,0)
             if parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False):
