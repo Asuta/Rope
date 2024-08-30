@@ -640,27 +640,33 @@ class VideoManager():
             
             img = img.permute(1,2,0)
             # 如果mask 
-            if not control['MaskViewButton'] and (parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False)):
-                print("第一次")
+            if not control['MaskViewButton']:
                 # img = img.permute(2,0,1)
                 # if parameters['OrientSwitch']:
                 #     img = transforms.functional.rotate(img, angle=-parameters['OrientSlider'], expand=True)
                 # elif parameters.get('AutoRotateSwitch', False):
                 #     img = transforms.functional.rotate(img, angle=-90*rotation, expand=True)
                 # img = img.permute(1,2,0)
-            if parameters.get('AutoRotateSwitch', True): 
-                print("第二次")
-                img = img.permute(2,0,1)
-                img = transforms.functional.rotate(img, angle=- rotation3+rotation2, expand=True)
-                img = img.permute(1,2,0)
+                if parameters.get('OrientSwitch', True): 
+                    print("aaa")
+                    img = img.permute(2,0,1)
+                    img = transforms.functional.rotate(img, angle=-parameters['OrientSlider'], expand=True)
+                    img = img.permute(1,2,0)
+                if parameters.get('AutoRotateSwitch', True): 
+                    print("bbb")
+                    img = img.permute(2,0,1)
+                    img = transforms.functional.rotate(img, angle=- rotation3+rotation2, expand=True)
+                    img = img.permute(1,2,0)
         else:
             img = img.permute(1,2,0)
             if parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False):
+                print("ccc")
                 img = img.permute(2,0,1)
                 if parameters['OrientSwitch']:
+                    print("ddd")
                     img = v2.functional.rotate(img, angle=-parameters['OrientSlider'], interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-                elif parameters.get('AutoRotateSwitch', False):
-                    img = v2.functional.rotate(img, angle=-90*rotation, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                # elif parameters.get('AutoRotateSwitch', False):
+                #     img = v2.functional.rotate(img, angle=-90*rotation, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                 img = img.permute(1,2,0)
         
         if self.perf_test:
