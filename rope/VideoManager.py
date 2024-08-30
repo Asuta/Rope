@@ -564,11 +564,11 @@ class VideoManager():
             rotation2 = 0
             rotation3 = 0
             face_angle = 0
+            offset_angle = 0
             for rotation in range(4):  # 0°, 90°, 180°, 270°
                 if rotation > 0:
                     img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                     rotation3 = rotation*90
-                
                 # 检测人脸
                 kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
                 
@@ -601,11 +601,21 @@ class VideoManager():
                             # 计算人脸的角度
                             face_angle = math.atan2(mouth_distance[1], mouth_distance[0]) - math.atan2(eye_distance[1], eye_distance[0])
                             face_angle = math.degrees(face_angle)
-                            print("rotation 的角度：", rotation)
-                            print("当前人脸的角度：", face_angle)
-                            rotation2 = face_angle + rotation*90 + 90
-                            print("rotation2:", rotation2)
-                            img = v2.functional.rotate(img, angle=-rotation2, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                            print("当前人脸face_angle:", face_angle)
+                            # 修正角度
+                            offset_angle = face_angle - rotation*90+90
+                            #计算offset_angle接近的整数
+                            offset_angle = -round(offset_angle/90)*90
+                            print("修正后的角度：", offset_angle) 
+                            # 先转回来      
+                            img = v2.functional.rotate(img, angle=rotation3, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                            # 再转回去
+                            img = v2.functional.rotate(img, angle=offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+
+                        
+                            
+                            
+                            # img = v2.functional.rotate(img, angle=-rotation2, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                             
                             kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
                             if len(kpss) > 0:
@@ -660,7 +670,7 @@ class VideoManager():
                     # img = transforms.functional.rotate(img, angle=- rotation3+rotation2, expand=True)#完全不对
                     # img = transforms.functional.rotate(img, angle=- rotation3, expand=True)#差一点对了，图片会转到“头朝上”的位置
                     # img = transforms.functional.rotate(img, angle=-face_angle - 90, expand=True)#差一点对了，图片会转到“头朝上”的位置
-                    img = transforms.functional.rotate(img, angle=face_angle + 90, expand=True)#差一点对了，图片会转到“头朝上”的位置
+                    img = transforms.functional.rotate(img, angle=-offset_angle, expand=True)#差一点对了，图片会转到“头朝上”的位置
                     img = img.permute(1,2,0)
         else:
             img = img.permute(1,2,0)
