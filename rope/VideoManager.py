@@ -582,28 +582,37 @@ class VideoManager():
                         if sim >= float(parameters["ThresholdSlider"]):
                             print("找到了")
                             print("当前旋转的角度：", rotation)
-                            # 计算当前人脸的角度，通过眼睛和鼻子的相对位置
-                            # print("face_kps:", face_kps)
-                            # 获取左眼、右眼和鼻子的坐标
+                            
+                            
+                            
+                            # # 计算当前人脸的角度，通过眼睛和鼻子的相对位置
+                            # # print("face_kps:", face_kps)
+                            # # 获取左眼、右眼和鼻子的坐标
+                            # left_eye = face_kps[0]
+                            # right_eye = face_kps[1]
+                            # nose = face_kps[2]
+
+                            # # 计算眼睛中心点
+                            # eye_center = (left_eye + right_eye) / 2
+
+                            # # 计算眼睛中心到鼻子的向量
+                            # eye_to_nose = nose - eye_center
+
+                            # # 计算人脸的角度
+                            # face_angle = math.atan2(eye_to_nose[1], eye_to_nose[0])
+                            # face_angle = -math.degrees(face_angle)
+                            
+                            
+                            # 计算当前人脸的角度，通过眼睛和嘴巴的相对位置。
                             left_eye = face_kps[0]
                             right_eye = face_kps[1]
-                            nose = face_kps[2]
-
-                            # 计算眼睛中心点
+                            mouth_center = (face_kps[3]+face_kps[4])/2
                             eye_center = (left_eye + right_eye) / 2
-
-                            # 计算眼睛中心到鼻子的向量
-                            eye_to_nose = nose - eye_center
-
-                            # 计算人脸的角度
-                            face_angle = math.atan2(eye_to_nose[1], eye_to_nose[0])
+                            eye_to_mouth = mouth_center - eye_center
+                            face_angle = math.atan2(eye_to_mouth[1], eye_to_mouth[0])
                             face_angle = -math.degrees(face_angle)
 
-                            # # 调整角度范围到 -90 到 90 度之间
-                            # if face_angle > 90:
-                            #     face_angle -= 180
-                            # elif face_angle < -90:
-                            #     face_angle += 180
+
                             
                             
                             print("当前人脸face_angle:", face_angle)
