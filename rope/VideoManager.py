@@ -582,23 +582,28 @@ class VideoManager():
                         if sim >= float(parameters["ThresholdSlider"]):
                             print("找到了")
                             print("当前旋转的角度：", rotation)
-                            #计算当前人脸的嵌入的人脸角度。通过眼睛和嘴巴的相对位置。
+                            # 计算当前人脸的角度，通过眼睛和鼻子的相对位置
                             # print("face_kps:", face_kps)
-                            # 计算眼睛的中心点
+                            # 获取左眼、右眼和鼻子的坐标
                             left_eye = face_kps[0]
                             right_eye = face_kps[1]
-                            eye_center = (left_eye[0] + right_eye[0]) / 2
-                            
-                            # 计算眼睛的相对位置
-                            eye_distance = right_eye - left_eye
-                            # 计算嘴巴的中心点
-                            mouth_center = (face_kps[2] + face_kps[3]) / 2
-                            # 计算嘴巴的相对位置
-                            mouth_distance = mouth_center - eye_center
+                            nose = face_kps[2]
+
+                            # 计算眼睛中心点
+                            eye_center = (left_eye + right_eye) / 2
+
+                            # 计算眼睛中心到鼻子的向量
+                            eye_to_nose = nose - eye_center
 
                             # 计算人脸的角度
-                            face_angle = math.atan2(mouth_distance[1], mouth_distance[0]) - math.atan2(eye_distance[1], eye_distance[0])
-                            face_angle = math.degrees(face_angle)
+                            face_angle = math.atan2(eye_to_nose[1], eye_to_nose[0])
+                            face_angle = -math.degrees(face_angle)
+
+                            # # 调整角度范围到 -90 到 90 度之间
+                            # if face_angle > 90:
+                            #     face_angle -= 180
+                            # elif face_angle < -90:
+                            #     face_angle += 180
                             
                             
                             print("当前人脸face_angle:", face_angle)
