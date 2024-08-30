@@ -583,7 +583,7 @@ class VideoManager():
                             print("找到了")
                             print("当前旋转的角度：", rotation)
                             #计算当前人脸的嵌入的人脸角度。通过眼睛和嘴巴的相对位置。
-                            print("face_kps:", face_kps)
+                            # print("face_kps:", face_kps)
                             # 计算眼睛的中心点
                             left_eye = face_kps[0]
                             right_eye = face_kps[1]
@@ -595,12 +595,12 @@ class VideoManager():
                             mouth_center = (face_kps[2] + face_kps[3]) / 2
                             # 计算嘴巴的相对位置
                             mouth_distance = mouth_center - eye_center
-                            # log 
-                            print("眼睛的相对位置：", eye_distance)
-                            print("嘴巴的相对位置：", mouth_distance)
+
                             # 计算人脸的角度
                             face_angle = math.atan2(mouth_distance[1], mouth_distance[0]) - math.atan2(eye_distance[1], eye_distance[0])
                             face_angle = math.degrees(face_angle)
+                            
+                            
                             print("当前人脸face_angle:", face_angle)
                             # 修正角度
                             offset_angle = face_angle - rotation*90+90
@@ -624,6 +624,11 @@ class VideoManager():
                             # img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                             break
                     break
+                if rotation == 3:
+                    img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                    offset_angle = 0
+                    print("没有检测到人脸  并旋转90度")
+                    break
         else:
             # 原有的旋转功能
             if parameters['OrientSwitch']:
@@ -640,6 +645,7 @@ class VideoManager():
             ret.append([face_kps, face_emb])
         
         if len(ret) > 0:
+            print("ret>0")
             # 遍历目标人脸,查看它们是否与我们找到的人脸嵌入匹配
             for fface in ret:
                 for found_face in self.found_faces:
@@ -653,6 +659,7 @@ class VideoManager():
             img = img.permute(1,2,0)
             # 如果mask 
             if not control['MaskViewButton']:
+                print("mask")
                 # img = img.permute(2,0,1)
                 # if parameters['OrientSwitch']:
                 #     img = transforms.functional.rotate(img, angle=-parameters['OrientSlider'], expand=True)
@@ -673,8 +680,10 @@ class VideoManager():
                     img = transforms.functional.rotate(img, angle=-offset_angle, expand=True)#差一点对了，图片会转到“头朝上”的位置
                     img = img.permute(1,2,0)
         else:
+            print("ret=0")
             img = img.permute(1,2,0)
-            if parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False):
+            # if parameters['OrientSwitch'] or parameters.get('AutoRotateSwitch', False):
+            if parameters['OrientSwitch'] :
                 print("ccc")
                 img = img.permute(2,0,1)
                 if parameters['OrientSwitch']:
@@ -683,7 +692,14 @@ class VideoManager():
                 # elif parameters.get('AutoRotateSwitch', False):
                 #     img = v2.functional.rotate(img, angle=-90*rotation, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                 img = img.permute(1,2,0)
-        
+            if parameters.get('AutoRotateSwitch', True):
+                print("eee")
+                img = img.permute(2,0,1)
+                # img = transforms.functional.rotate(img, angle=-90*rotation, expand=True)#完全不对
+                # img = transforms.functional.rotate(img, angle=- rotation3, expand=True)#差一点对了，图片会转到“头朝上”的位置
+                # img = transforms.functional.rotate(img, angle=-face_angle - 90, expand=True)#差一点对了，图片会转到“头朝上”的位置
+                img = transforms.functional.rotate(img, angle=-offset_angle, expand=True)#差一点对了，图片会转到“头朝上”的位置
+                img = img.permute(1,2,0)
         if self.perf_test:
             print('------------------------')  
         
