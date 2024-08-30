@@ -563,6 +563,7 @@ class VideoManager():
         if parameters.get('AutoRotateSwitch', True):  # 假设您添加了一个新的AutoRotateSwitch参数
             rotation2 = 0
             rotation3 = 0
+            face_angle = 0
             for rotation in range(4):  # 0°, 90°, 180°, 270°
                 if rotation > 0:
                     img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
@@ -605,6 +606,7 @@ class VideoManager():
                             rotation2 = face_angle + rotation*90 + 90
                             print("rotation2:", rotation2)
                             img = v2.functional.rotate(img, angle=-rotation2, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                            
                             kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
                             if len(kpss) > 0:
                                 print("第二次检测到人脸")
@@ -655,7 +657,10 @@ class VideoManager():
                 if parameters.get('AutoRotateSwitch', True): 
                     print("bbb")
                     img = img.permute(2,0,1)
-                    img = transforms.functional.rotate(img, angle=- rotation3+rotation2, expand=True)
+                    # img = transforms.functional.rotate(img, angle=- rotation3+rotation2, expand=True)#完全不对
+                    # img = transforms.functional.rotate(img, angle=- rotation3, expand=True)#差一点对了，图片会转到“头朝上”的位置
+                    # img = transforms.functional.rotate(img, angle=-face_angle - 90, expand=True)#差一点对了，图片会转到“头朝上”的位置
+                    img = transforms.functional.rotate(img, angle=face_angle + 90, expand=True)#差一点对了，图片会转到“头朝上”的位置
                     img = img.permute(1,2,0)
         else:
             img = img.permute(1,2,0)
