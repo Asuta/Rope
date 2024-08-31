@@ -616,17 +616,24 @@ class VideoManager():
                             
                             
                             print("当前人脸face_angle:", face_angle)
-                            # 修正角度
-                            offset_angle = face_angle - rotation*90+90
-                            #计算offset_angle接近的整数
-                            offset_angle = -round(offset_angle/90)*90
+                            if(rotation==0 or rotation==2):
+                                print("检测到0，2了")
+                                # 修正角度 
+                                offset_angle = face_angle - rotation*90+90
+                                #计算offset_angle接近的整数
+                                offset_angle = -round(offset_angle/90)*90
+                            if(rotation==1 or rotation==3):
+                                print("检测到1，3了")
+                                # 修正角度 
+                                offset_angle = face_angle - rotation*90-90
+                                #计算offset_angle接近的整数
+                                offset_angle = round(offset_angle/90)*90
+                                img = v2.functional.rotate(img, angle=180, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                             print("修正后的角度：", offset_angle) 
                             # 先转回来      
                             img = v2.functional.rotate(img, angle=rotation3, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                             # 再转回去
                             img = v2.functional.rotate(img, angle=offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-
-                        
                             
                             
                             # img = v2.functional.rotate(img, angle=-rotation2, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
