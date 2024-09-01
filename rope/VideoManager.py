@@ -573,6 +573,7 @@ class VideoManager():
                 kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
                 
                 if len(kpss) > 0:  # 如果检测到人脸,跳出循环
+                    print("检测到人脸")
                     # 如果有人脸，判断这个人脸是不是目标人脸。
                     for face_kps in kpss:# 这里face_kps指的是视频中的人脸。
                         # 获取视频中的人脸的嵌入
@@ -642,13 +643,22 @@ class VideoManager():
                             if len(kpss) > 0:
                                 print("第二次检测到人脸")
                             else:
-                                print("第二次没有检测到人脸！")
-                            # 再转回来
-                            # img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                                print("第二次没有检测到人脸！！！！！")
+                                # 再转回来
+                                # img = v2.functional.rotate(img, angle=-rotation3, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                                img = v2.functional.rotate(img, angle=-offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                                kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+                                offset_angle = rotation3
                             break
                         else:
-                            print("sim值小于阈值")
+                            print("sim值小于阈值,但是没有检测到 指定人脸")
+                            # 再转回来
+                            # img = v2.functional.rotate(img, angle=-rotation3, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                            # img = v2.functional.rotate(img, angle=-offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                            # kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+                            break
                     break
+                
                 if rotation == 3:
                     img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                     offset_angle = 0
