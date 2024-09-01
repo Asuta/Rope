@@ -625,13 +625,19 @@ class VideoManager():
                                 offset_angle = face_angle - rotation*90+90
                                 #计算offset_angle接近的整数
                                 offset_angle = -round(offset_angle/90)*90
-                            if(rotation==1 or rotation==3):
-                                print("检测到1，3了")
+                            if( rotation==3):
+                                print("检测到3了")
                                 # 修正角度 
                                 offset_angle = face_angle - rotation*90-90
                                 #计算offset_angle接近的整数
                                 offset_angle = round(offset_angle/90)*90
-                                img = v2.functional.rotate(img, angle=180, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                                img = v2.functional.rotate(img, angle=-90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                            if(rotation==1):
+                                # 修正角度 
+                                offset_angle = face_angle - rotation*90-90
+                                #计算offset_angle接近的整数
+                                offset_angle = round(offset_angle/90)*90
+                                
                             print("修正后的角度：", offset_angle) 
                             # 先转回来      
                             img = v2.functional.rotate(img, angle=-rotation3, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
@@ -644,14 +650,24 @@ class VideoManager():
                             kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
                             if len(kpss) > 0:
                                 print("第二次检测到人脸")
+                                if( rotation==3):
+                                    img = v2.functional.rotate(img, angle=-offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                                    kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+                                    offset_angle = rotation3
                                 isCorrectFace = True
                             else:
                                 print("第二次没有检测到人脸！！！！！")
                                 # 再转回来
-                                # img = v2.functional.rotate(img, angle=-rotation3, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-                                img = v2.functional.rotate(img, angle=-offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-                                kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
-                                offset_angle = rotation3
+                                if( rotation==3):
+                                    img = v2.functional.rotate(img, angle=-offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                                    kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+                                    offset_angle = rotation3
+                                else:
+                                    img = v2.functional.rotate(img, angle=rotation3, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                                    img = v2.functional.rotate(img, angle=-offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
+                                    kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
+                                    offset_angle = rotation3
+                                    isCorrectFace = True
                             break
                         else:
                             print("检测到人脸但是sim值小于阈值")
@@ -661,7 +677,7 @@ class VideoManager():
                         break
                 else:
                     print("这次没有检测到人脸")
-                    offset_angle = rotation3
+                    offset_angle = 270
                     continue
         else:
             # 原有的旋转功能
