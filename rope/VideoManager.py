@@ -651,24 +651,18 @@ class VideoManager():
                                 offset_angle = rotation3
                             break
                         else:
-                            print("sim值小于阈值,但是没有检测到 指定人脸")
+                            print("检测到人脸但是sim值小于阈值")
+                            offset_angle = rotation3
                             # 再转回来
                             # img = v2.functional.rotate(img, angle=-rotation3, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                             # img = v2.functional.rotate(img, angle=-offset_angle, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
                             # kpss = self.func_w_test("detect", self.models.run_detect, img, parameters['DetectTypeTextSel'], max_num=20, score=parameters['DetectScoreSlider']/100.0)
                             break
                     break
-                
-                if rotation == 3:
-                    img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-                    offset_angle = 0
-                    print("没有检测到人脸  并旋转90度")
-                    break
-                if rotation == 4:
-                    img = v2.functional.rotate(img, angle=90, interpolation=v2.InterpolationMode.BILINEAR, expand=True)
-                    offset_angle = 0
-                    print("已经四次了。。。。还是没有")
-                    break
+                else:
+                    print("这次没有检测到人脸")
+                    offset_angle = rotation3
+                    continue
         else:
             # 原有的旋转功能
             if parameters['OrientSwitch']:
